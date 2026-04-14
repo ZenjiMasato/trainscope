@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <title>TrainScope</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface2: #1a1a26;
+      --border: rgba(255,255,255,0.07);
+      --text: #e8e8f0;
+      --muted: #5a5a7a;
+      --accent: #4fffb0;
+      --accent2: #7b6cff;
+      --warn: #ff9f4a;
+      --danger: #ff4a6a;
+      --speed-color: var(--text);
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+      padding-top: calc(var(--safe-top) + 16px);
+      padding-bottom: calc(var(--safe-bottom) + 16px);
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 22px;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .phase-badge {
+      font-size: 10px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 10px;
+      letter-spacing: 1px;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 24px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      transition: background 0.4s;
+    }
+    .status-dot.active { background: var(--accent); animation: pulse 2s infinite; }
+    .status-dot.error  { background: var(--danger); }
+
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(79,255,176,0.4); }
+      50%      { box-shadow: 0 0 0 6px rgba(79,255,176,0); }
+    }
+
+    #status-text { flex: 1; }
+
+    .loader {
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .speed-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 24px;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .speed-card::before {
+      content: '';
+      position: absolute;
+      top: -60px; right: -60px;
+      width: 180px; height: 180px;
+      background: radial-gradient(circle, rgba(79,255,176,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .speed-label {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .speed-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 72px;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--speed-color);
+      transition: color 0.5s;
+      letter-spacing: -3px;
+    }
+
+    .speed-unit {
+      font-size: 16px;
+      font-weight: 300;
+      color: var(--muted);
+      margin-left: 4px;
+    }
+
+    .speed-bar-wrap {
+      margin-top: 16px;
+      height: 3px;
+      background: var(--surface2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .speed-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .speed-mode {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .card-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .mini-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px 16px;
+    }
+
+    .mini-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .mini-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .mini-value.accent { color: var(--accent); }
+    .mini-value small { font-size: 11px; font-weight: 400; color: var(--muted); margin-left: 3px; }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .refresh-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      padding: 5px 12px;
+      cursor: pointer;
+    }
+    .refresh-btn:active { background: var(--surface2); color: var(--text); }
+    .refresh-btn.loading { opacity: 0.5; pointer-events: none; }
+
+    .station-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .station-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      animation: slideIn 0.3s ease both;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .station-item:nth-child(1) { animation-delay:0.05s; border-color:rgba(79,255,176,0.2); }
+    .station-item:nth-child(2) { animation-delay:0.10s; }
+    .station-item:nth-child(3) { animation-delay:0.15s; }
+    .station-item:nth-child(4) { animation-delay:0.20s; }
+    .station-item:nth-child(5) { animation-delay:0.25s; }
+
+    .station-rank {
+      font-family: 'Syne', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      width: 18px;
+      flex-shrink: 0;
+    }
+    .station-item:nth-child(1) .station-rank { color: var(--accent); }
+
+    .station-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: var(--surface2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .station-info { flex: 1; min-width: 0; }
+
+    .station-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .station-line {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .station-dist {
+      font-size: 12px;
+      color: var(--accent2);
+      font-weight: 500;
+      flex-shrink: 0;
+      text-align: right;
+    }
+    .station-dist small { display:block; font-size:9px; color:var(--muted); margin-top:1px; }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+
+    .coords {
+      margin-top: 20px;
+      padding: 12px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 10px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .footer {
+      margin-top: 20px;
+      padding-bottom: 4px;
+      font-size: 10px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .footer a { color: var(--accent2); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo">TrainScope</div>
+    <div class="phase-badge">Phase 1</div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <div id="status-text">位置情報を取得中…</div>
+    <div class="loader" id="loader"></div>
+  </div>
+
+  <div class="speed-card">
+    <div class="speed-label">現在速度</div>
+    <div>
+      <span class="speed-value" id="speed-val">—</span>
+      <span class="speed-unit">km/h</span>
+    </div>
+    <div class="speed-bar-wrap">
+      <div class="speed-bar" id="speed-bar"></div>
+    </div>
+    <div class="speed-mode">移動手段推定：<span id="move-mode">待機中</span></div>
+  </div>
+
+  <div class="card-row">
+    <div class="mini-card">
+      <div class="mini-label">GPS精度</div>
+      <div class="mini-value" id="accuracy-val">—<small>m</small></div>
+    </div>
+    <div class="mini-card">
+      <div class="mini-label">近くの駅</div>
+      <div class="mini-value accent" id="station-count">—<small>駅</small></div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <div class="section-title">近くの駅</div>
+    <button class="refresh-btn" id="refresh-btn" onclick="fetchStations()">更新</button>
+  </div>
+
+  <div class="station-list" id="station-list">
+    <div class="empty-state">
+      <div class="icon">🛤️</div>
+      位置情報を取得後<br>近くの駅を表示します
+    </div>
+  </div>
+
+  <div class="coords">
+    <span>LAT: <span id="lat-val">—</span></span>
+    <span>LNG: <span id="lng-val">—</span></span>
+    <span>更新: <span id="updated-val">—</span></span>
+  </div>
+
+  <div class="footer">
+    駅データ提供: <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a> contributors (ODbL)
+  </div>
+
+<script>
+const state = {
+  lat: null, lng: null, speed: 0, accuracy: null,
+  watchId: null, lastFetchPos: null,
+};
+
+const els = {
+  dot:      document.getElementById('status-dot'),
+  status:   document.getElementById('status-text'),
+  loader:   document.getElementById('loader'),
+  speedVal: document.getElementById('speed-val'),
+  speedBar: document.getElementById('speed-bar'),
+  moveMode: document.getElementById('move-mode'),
+  accVal:   document.getElementById('accuracy-val'),
+  stCount:  document.getElementById('station-count'),
+  stList:   document.getElementById('station-list'),
+  latVal:   document.getElementById('lat-val'),
+  lngVal:   document.getElementById('lng-val'),
+  updated:  document.getElementById('updated-val'),
+  refresh:  document.getElementById('refresh-btn'),
+};
+
+function detectMode(kmh) {
+  if (kmh < 2)  return { label: '停止中',         color: 'var(--muted)' };
+  if (kmh < 10) return { label: '🚶 徒歩',         color: 'var(--text)' };
+  if (kmh < 25) return { label: '🚴 自転車',       color: 'var(--warn)' };
+  if (kmh < 60) return { label: '🚗 自動車',       color: 'var(--warn)' };
+  return               { label: '🚆 電車の可能性', color: 'var(--accent)' };
+}
+
+function updateSpeed(mps) {
+  const kmh  = mps != null ? Math.round(mps * 3.6) : 0;
+  const mode = detectMode(kmh);
+  const pct  = Math.min(kmh / 130 * 100, 100);
+
+  els.speedVal.textContent = mps != null ? kmh : '—';
+  els.speedBar.style.width = pct + '%';
+  els.moveMode.innerHTML   = `<span style="color:${mode.color}">${mode.label}</span>`;
+
+  const col = kmh > 40 ? 'var(--accent)' : kmh > 10 ? 'var(--warn)' : 'var(--text)';
+  document.documentElement.style.setProperty('--speed-color', col);
+}
+
+function distance(lat1, lng1, lat2, lng2) {
+  const R = 6371e3;
+  const p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180;
+  const dp = (lat2-lat1)*Math.PI/180, dl = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function fmtDist(m) {
+  return m < 1000 ? Math.round(m)+'m' : (m/1000).toFixed(1)+'km';
+}
+
+async function fetchStations() {
+  if (!state.lat) return;
+  els.refresh.classList.add('loading');
+  els.refresh.textContent = '取得中…';
+
+  const query = `[out:json][timeout:15];node["railway"="station"](around:1500,${state.lat},${state.lng});out body;`;
+  const url   = 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query);
+
+  try {
+    const json     = await (await fetch(url)).json();
+    const stations = (json.elements || [])
+      .map(el => ({
+        name:     el.tags?.['name:ja'] || el.tags?.['name'] || '不明',
+        operator: el.tags?.['operator'] || el.tags?.['network'] || '',
+        dist:     distance(state.lat, state.lng, el.lat, el.lon),
+      }))
+      .sort((a,b) => a.dist - b.dist)
+      .slice(0, 6);
+
+    state.lastFetchPos = { lat: state.lat, lng: state.lng };
+    renderStations(stations);
+    els.stCount.innerHTML = stations.length + '<small>駅</small>';
+
+  } catch {
+    els.stList.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">⚠️</div>
+        駅データの取得に失敗しました<br>
+        <small>「更新」ボタンで再試行してください</small>
+      </div>`;
+  } finally {
+    els.refresh.classList.remove('loading');
+    els.refresh.textContent = '更新';
+  }
+}
+
+function renderStations(stations) {
+  if (!stations.length) {
+    els.stList.innerHTML = `<div class="empty-state"><div class="icon">🔍</div>1.5km以内に駅が見つかりませんでした</div>`;
+    return;
+  }
+  const icons = ['🚉','🚊','🚋','🛤️','🚄','🚅'];
+  els.stList.innerHTML = stations.map((s,i) => `
+    <div class="station-item">
+      <div class="station-rank">${i+1}</div>
+      <div class="station-icon">${icons[i]||'🚉'}</div>
+      <div class="station-info">
+        <div class="station-name">${s.name}</div>
+        <div class="station-line">${s.operator||'OpenStreetMap'}</div>
+      </div>
+      <div class="station-dist">${fmtDist(s.dist)}<small>徒歩約${Math.round(s.dist/80)}分</small></div>
+    </div>
+  `).join('');
+}
+
+function onPosition(pos) {
+  const { latitude, longitude, speed, accuracy } = pos.coords;
+  state.lat = latitude; state.lng = longitude;
+  state.speed = speed || 0; state.accuracy = accuracy;
+
+  els.dot.className        = 'status-dot active';
+  els.status.textContent   = '位置情報を受信中';
+  els.loader.style.display = 'none';
+
+  updateSpeed(speed);
+  els.accVal.innerHTML = Math.round(accuracy) + '<small>m</small>';
+  els.latVal.textContent = latitude.toFixed(5);
+  els.lngVal.textContent = longitude.toFixed(5);
+
+  const t = new Date();
+  els.updated.textContent =
+    String(t.getHours()).padStart(2,'0') + ':' +
+    String(t.getMinutes()).padStart(2,'0') + ':' +
+    String(t.getSeconds()).padStart(2,'0');
+
+  const needsFetch = !state.lastFetchPos
+    || distance(state.lastFetchPos.lat, state.lastFetchPos.lng, latitude, longitude) > 100;
+  if (needsFetch) fetchStations();
+}
+
+function onError(err) {
+  els.dot.className        = 'status-dot error';
+  els.loader.style.display = 'none';
+  const msgs = {
+    1: '位置情報の許可が拒否されました。\nSafariの設定→プライバシーから許可してください。',
+    2: '位置情報を取得できません。電波状況を確認してください。',
+    3: '位置情報の取得がタイムアウトしました。',
+  };
+  els.status.textContent = msgs[err.code] || '位置情報エラー';
+  els.stList.innerHTML = `<div class="empty-state"><div class="icon">📍</div>${msgs[err.code]||'エラーが発生しました'}</div>`;
+}
+
+if (!navigator.geolocation) {
+  els.status.textContent = 'このブラウザはGeolocationに対応していません';
+  els.dot.className      = 'status-dot error';
+} else {
+  navigator.geolocation.watchPosition(onPosition, onError, {
+    enableHighAccuracy: true,
+    maximumAge: 5000,
+    timeout: 15000,
+  });
+}
+</script>
+</body>
+</html>
